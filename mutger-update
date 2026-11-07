@@ -1,0 +1,10 @@
+#!/bin/bash
+# Downloads the latest encrypted patch package, decrypts it with a passphrase you type, runs it.
+[ "$(id -u)" = 0 ] || { echo "run: sudo mutger-update"; exit 1; }
+U="https://raw.githubusercontent.com/md-e/mutger-deploy/main/update.enc"
+T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
+curl -fsSL "$U?$(date +%s)" -o "$T/u.enc" || { echo "download failed"; exit 1; }
+read -rsp "Passphrase: " P; echo
+printf %s "$P" | openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in "$T/u.enc" -out "$T/u.sh" -pass stdin 2>/dev/null || { echo "wrong passphrase"; exit 1; }
+sed -n 2,3p "$T/u.sh" | grep -q '^# MUTGER-PATCH' || { echo "not a valid package"; exit 1; }
+bash "$T/u.sh"
